@@ -11,6 +11,7 @@ import (
 
 	"github.com/shadmeoli/kairos/internal/config"
 	"github.com/shadmeoli/kairos/internal/gitexec"
+	"github.com/shadmeoli/kairos/internal/stashops"
 	"github.com/shadmeoli/kairos/internal/store"
 	"github.com/shadmeoli/kairos/internal/timeline"
 	"github.com/shadmeoli/kairos/internal/ui"
@@ -26,6 +27,9 @@ var (
 
 	preSwitchLabel string
 	preSwitchNote  string
+
+	stashPushMsg       string
+	stashPushUntracked bool
 )
 
 func main() {
@@ -98,6 +102,83 @@ func main() {
 	}
 	switchCmd.Flags().StringVar(&preSwitchLabel, "label", "", "label for the checkpoint saved before switch")
 	switchCmd.Flags().StringVar(&preSwitchNote, "note", "", "note for the checkpoint saved before switch")
+
+	stashCmd := &cobra.Command{
+		Use:   "stash",
+		Short: "Stash with extra metadata (parent branch, time, files) stored under .kairos/",
+	}
+	stashPushCmd := &cobra.Command{
+		Use:   "push [pathspec...]",
+		Short: "git stash push, then save kairos metadata for the new stash",
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, err := timeline.CurrentRepo(startDir)
+			if err != nil {
+				return err
+			}
+			return stashops.Push(repo, stashPushMsg, stashPushUntracked, args)
+		},
+	}
+	stashPushCmd.Flags().StringVarP(&stashPushMsg, "message", "m", "", "stash message (passed to git)")
+	stashPushCmd.Flags().BoolVarP(&stashPushUntracked, "include-untracked", "u", false, "pass --include-untracked to git stash push")
+
+	stashListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "git stash list with kairos metadata below each entry when available",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, err := timeline.CurrentRepo(startDir)
+			if err != nil {
+				return err
+			}
+			return stashops.List(repo)
+		},
+	}
+
+	stashShowCmd := &cobra.Command{
+		Use:   "show [stash@{n}]",
+		Short: "Print kairos metadata for a stash ref (default stash@{0})",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, err := timeline.CurrentRepo(startDir)
+			if err != nil {
+				return err
+			}
+			ref := "stash@{0}"
+			if len(args) == 1 {
+				ref = args[0]
+			}
+			return stashops.Show(repo, ref)
+		},
+	}
+
+	stashPopCmd := &cobra.Command{
+		Use:   "pop [git stash pop args]",
+		Short: "git stash pop; removes kairos metadata on success",
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, err := timeline.CurrentRepo(startDir)
+			if err != nil {
+				return err
+			}
+			return stashops.Pop(repo, args)
+		},
+	}
+
+	stashApplyCmd := &cobra.Command{
+		Use:   "apply [git stash apply args]",
+		Short: "git stash apply (kairos metadata kept until pop)",
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, err := timeline.CurrentRepo(startDir)
+			if err != nil {
+				return err
+			}
+			return stashops.Apply(repo, args)
+		},
+	}
+
+	stashCmd.AddCommand(stashPushCmd, stashListCmd, stashShowCmd, stashPopCmd, stashApplyCmd)
 
 	backCmd := &cobra.Command{
 		Use:   "back",
@@ -306,7 +387,7 @@ func main() {
 	}
 	configCmd.AddCommand(maxHistoryCmd)
 
-	rootCmd.AddCommand(saveCmd, checkoutCmd, switchCmd, backCmd, forwardCmd, jumpCmd, listCmd, statusCmd, configCmd, versionCmd)
+	rootCmd.AddCommand(saveCmd, checkoutCmd, switchCmd, stashCmd, backCmd, forwardCmd, jumpCmd, listCmd, statusCmd, configCmd, versionCmd)
 
 	rootCmd.Long = strings.TrimSpace(
 		"Examples:\n" +
@@ -322,6 +403,8 @@ func main() {
 			"  kairos status\n" +
 			"  kairos config\n" +
 			"  kairos config max-history 8\n" +
+			"  kairos stash push -m wip -u\n" +
+			"  kairos stash list\n" +
 			"  kairos --repo ~/proj save --note wip",
 	)
 

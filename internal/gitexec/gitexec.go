@@ -91,6 +91,41 @@ func ShortHash(repo RepoRoot, rev string) (string, error) {
 }
 
 // RunInteractive runs git with stdout/stderr attached (for checkout/switch).
+func StashShowFilenames(repo RepoRoot, stashRef string, wantUntracked bool) ([]string, error) {
+	try := func(untracked bool) (string, error) {
+		args := []string{"stash", "show", "--name-only"}
+		if untracked {
+			args = append(args, "--include-untracked")
+		}
+		args = append(args, stashRef)
+		return Run(repo, args...)
+	}
+	out, err := try(wantUntracked)
+	if err != nil && wantUntracked {
+		out, err = try(false)
+	}
+	if err != nil {
+		return nil, err
+	}
+	out = strings.TrimSpace(out)
+	if out == "" {
+		return nil, nil
+	}
+	var names []string
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			names = append(names, line)
+		}
+	}
+	return names, nil
+}
+
+// StashLogSubject returns the one-line subject of the stash commit.
+func StashLogSubject(repo RepoRoot, stashRef string) (string, error) {
+	return Run(repo, "log", "-1", "--format=%s", stashRef)
+}
+
 func RunInteractive(repo RepoRoot, gitArgs []string) error {
 	if len(gitArgs) == 0 {
 		return errors.New("no git arguments")

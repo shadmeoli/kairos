@@ -21,4 +21,4 @@ if [ -z "$bin_dir" ]; then
 fi
 
 echo "Installed: $bin_dir/kairos"
-echo "If \`kairos\` is not found, add to PATH, e.g.: export PATH=\"$bin_dir:\$PATH\" you can also alias it as ks to be the short hand\n alias ks=kairos"
+echo "If \`kairos\` is not found, add to PATH\nexport PATH=\"$bin_dir:\$PATH\"\nyou can also alias it as ks to be the short hand\nalias ks=kairos"

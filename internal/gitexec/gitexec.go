@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -87,4 +88,22 @@ func ShortHash(repo RepoRoot, rev string) (string, error) {
 		return "", errors.New("empty rev")
 	}
 	return Run(repo, "rev-parse", "--short", rev)
+}
+
+// RunInteractive runs git with stdout/stderr attached (for checkout/switch).
+func RunInteractive(repo RepoRoot, gitArgs []string) error {
+	if len(gitArgs) == 0 {
+		return errors.New("no git arguments")
+	}
+	cmd := exec.Command("git", gitArgs...)
+	if repo != "" {
+		cmd.Dir = string(repo)
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git %v: %w", gitArgs, err)
+	}
+	return nil
 }

@@ -23,6 +23,9 @@ var (
 	noteFlag   string
 	plainFlag  bool
 	startDir   string
+
+	preSwitchLabel string
+	preSwitchNote  string
 )
 
 func main() {
@@ -55,13 +58,46 @@ func main() {
 			if err != nil {
 				return err
 			}
-			cp := s.Checkpoints[s.Cursor]
-			fmt.Printf("saved checkpoint [%d] %s @ %s\n", s.Cursor, shortRef(cp), shortHash(repo, cp.HEAD))
+			printSavedCheckpoint(repo, s)
 			return nil
 		},
 	}
 	saveCmd.Flags().StringVar(&labelFlag, "label", "", "optional label for jump")
 	saveCmd.Flags().StringVar(&noteFlag, "note", "", "optional note")
+
+	checkoutCmd := &cobra.Command{
+		Use:   "checkout [args]",
+		Short: "Save current state, then git checkout (pass-through args)",
+		Long:  "Records a checkpoint at your current HEAD/branch, then runs `git checkout` with the given arguments (e.g. a branch name or options git supports).",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, err := timeline.CurrentRepo(startDir)
+			if err != nil {
+				return err
+			}
+			gitArgs := append([]string{"checkout"}, args...)
+			return saveThenRunGit(repo, preSwitchLabel, preSwitchNote, gitArgs)
+		},
+	}
+	checkoutCmd.Flags().StringVar(&preSwitchLabel, "label", "", "label for the checkpoint saved before checkout")
+	checkoutCmd.Flags().StringVar(&preSwitchNote, "note", "", "note for the checkpoint saved before checkout")
+
+	switchCmd := &cobra.Command{
+		Use:   "switch [args]",
+		Short: "Save current state, then git switch (pass-through args)",
+		Long:  "Records a checkpoint at your current HEAD/branch, then runs `git switch` with the given arguments (e.g. a branch name or -c / --detach as git allows).",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repo, err := timeline.CurrentRepo(startDir)
+			if err != nil {
+				return err
+			}
+			gitArgs := append([]string{"switch"}, args...)
+			return saveThenRunGit(repo, preSwitchLabel, preSwitchNote, gitArgs)
+		},
+	}
+	switchCmd.Flags().StringVar(&preSwitchLabel, "label", "", "label for the checkpoint saved before switch")
+	switchCmd.Flags().StringVar(&preSwitchNote, "note", "", "note for the checkpoint saved before switch")
 
 	backCmd := &cobra.Command{
 		Use:   "back",
@@ -270,11 +306,13 @@ func main() {
 	}
 	configCmd.AddCommand(maxHistoryCmd)
 
-	rootCmd.AddCommand(saveCmd, backCmd, forwardCmd, jumpCmd, listCmd, statusCmd, configCmd, versionCmd)
+	rootCmd.AddCommand(saveCmd, checkoutCmd, switchCmd, backCmd, forwardCmd, jumpCmd, listCmd, statusCmd, configCmd, versionCmd)
 
 	rootCmd.Long = strings.TrimSpace(
 		"Examples:\n" +
 			"  kairos save --label before-refactor\n" +
+			"  kairos checkout feature/x\n" +
+			"  kairos switch main --label before-main\n" +
 			"  kairos list              # interactive timeline; Enter jumps\n" +
 			"  kairos list --plain      # print tree to stdout\n" +
 			"  kairos back\n" +
@@ -291,6 +329,23 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func printSavedCheckpoint(repo string, s store.State) {
+	if s.Cursor < 0 || s.Cursor >= len(s.Checkpoints) {
+		return
+	}
+	cp := s.Checkpoints[s.Cursor]
+	fmt.Printf("saved checkpoint [%d] %s @ %s\n", s.Cursor, shortRef(cp), shortHash(repo, cp.HEAD))
+}
+
+func saveThenRunGit(repo string, label, note string, gitArgs []string) error {
+	s, err := timeline.Save(repo, label, note)
+	if err != nil {
+		return err
+	}
+	printSavedCheckpoint(repo, s)
+	return gitexec.RunInteractive(gitexec.RepoRoot(repo), gitArgs)
 }
 
 func printNav(repo string, s store.State) {

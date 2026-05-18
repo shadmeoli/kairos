@@ -1,4 +1,4 @@
 package version
 
-// Tag is the release identifier: v:major.minor.patch (e.g. v:0.0.0).
-const Tag = "v0.1.1"
+// Tag is set at build time from the repository's git tags.
+var Tag = "dev"

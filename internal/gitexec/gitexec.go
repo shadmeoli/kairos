@@ -32,18 +32,8 @@ func Run(repo RepoRoot, args ...string) (string, error) {
 }
 
 func CreateBranch(repo string, branchName string) bool {
-	out, err := Run("", "branch", "--create", branchName)
-	if err != nil {
-		fmt.Printf("Unable to create branch\n%s", err)
-		return false
-	}
-
-	if out == "" {
-		return false
-	}
-	fmt.Printf("Branch created: %s", out)
-	return true
-
+	_, err := Run(RepoRoot(repo), "branch", "--create", branchName)
+	return err == nil
 }
 
 func RepoTopLevel(startDir string) (string, error) {

@@ -19,18 +19,29 @@ import (
 )
 
 var (
-	stashFlag  bool
-	labelFlag  string
-	noteFlag   string
-	plainFlag  bool
-	startDir   string
+	stashFlag bool
+	labelFlag string
+	noteFlag  string
+	plainFlag bool
+	startDir  string
 
+	branchName     string
 	preSwitchLabel string
 	preSwitchNote  string
 
 	stashPushMsg       string
 	stashPushUntracked bool
 )
+
+func minArgs(cmd *cobra.Command, args []string) error {
+	if branchName != "" && len(args) == 0 {
+		return nil
+	}
+	if branchName == "" && len(args) >= 1 {
+		return nil
+	}
+	return fmt.Errorf("use either `checkout <target>` or `checkout -b <branch>`")
+}
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -73,35 +84,59 @@ func main() {
 		Use:   "checkout [args]",
 		Short: "Save current state, then git checkout (pass-through args)",
 		Long:  "Records a checkpoint at your current HEAD/branch, then runs `git checkout` with the given arguments (e.g. a branch name or options git supports).",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  minArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, err := timeline.CurrentRepo(startDir)
 			if err != nil {
 				return err
 			}
-			gitArgs := append([]string{"checkout"}, args...)
+			var gitArgs []string
+			if branchName != "" {
+				if len(args) > 0 {
+					return fmt.Errorf("do not pass checkout args together with -b; use either `kairos checkout <target>` or `kairos checkout -b <branch>`")
+				}
+				gitArgs = []string{"checkout", "-b", branchName}
+			} else {
+				if len(args) == 0 {
+					return fmt.Errorf("checkout target required")
+				}
+				gitArgs = append([]string{"checkout"}, args...)
+			}
 			return saveThenRunGit(repo, preSwitchLabel, preSwitchNote, gitArgs)
 		},
 	}
 	checkoutCmd.Flags().StringVar(&preSwitchLabel, "label", "", "label for the checkpoint saved before checkout")
 	checkoutCmd.Flags().StringVar(&preSwitchNote, "note", "", "note for the checkpoint saved before checkout")
+	checkoutCmd.Flags().StringVarP(&branchName, "create", "b", "", "Initilize a new new branch and auto save it to the stack")
 
 	switchCmd := &cobra.Command{
 		Use:   "switch [args]",
 		Short: "Save current state, then git switch (pass-through args)",
 		Long:  "Records a checkpoint at your current HEAD/branch, then runs `git switch` with the given arguments (e.g. a branch name or -c / --detach as git allows).",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  minArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo, err := timeline.CurrentRepo(startDir)
 			if err != nil {
 				return err
 			}
-			gitArgs := append([]string{"switch"}, args...)
+			var gitArgs []string
+			if branchName != "" {
+				if len(args) > 0 {
+					return fmt.Errorf("do not pass switch args together with -b; use either `kairos switch <target>` or `kairos switch -c <branch>`")
+				}
+				gitArgs = []string{"switch", "-c", branchName}
+			} else {
+				if len(args) == 0 {
+					return fmt.Errorf("checkout target required")
+				}
+				gitArgs = append([]string{"switch"}, args...)
+			}
 			return saveThenRunGit(repo, preSwitchLabel, preSwitchNote, gitArgs)
 		},
 	}
 	switchCmd.Flags().StringVar(&preSwitchLabel, "label", "", "label for the checkpoint saved before switch")
 	switchCmd.Flags().StringVar(&preSwitchNote, "note", "", "note for the checkpoint saved before switch")
+	switchCmd.Flags().StringVarP(&branchName, "create", "c", "", "Create and switch to a new new branch and auto save it to the stack")
 
 	stashCmd := &cobra.Command{
 		Use:   "stash",
@@ -134,7 +169,6 @@ func main() {
 			return stashops.List(repo)
 		},
 	}
-
 	stashShowCmd := &cobra.Command{
 		Use:   "show [stash@{n}]",
 		Short: "Print kairos metadata for a stash ref (default stash@{0})",
@@ -151,7 +185,6 @@ func main() {
 			return stashops.Show(repo, ref)
 		},
 	}
-
 	stashPopCmd := &cobra.Command{
 		Use:   "pop [git stash pop args]",
 		Short: "git stash pop; removes kairos metadata on success",
@@ -164,7 +197,6 @@ func main() {
 			return stashops.Pop(repo, args)
 		},
 	}
-
 	stashApplyCmd := &cobra.Command{
 		Use:   "apply [git stash apply args]",
 		Short: "git stash apply (kairos metadata kept until pop)",
@@ -177,7 +209,6 @@ func main() {
 			return stashops.Apply(repo, args)
 		},
 	}
-
 	stashCmd.AddCommand(stashPushCmd, stashListCmd, stashShowCmd, stashPopCmd, stashApplyCmd)
 
 	backCmd := &cobra.Command{
@@ -196,7 +227,6 @@ func main() {
 			return nil
 		},
 	}
-
 	forwardCmd := &cobra.Command{
 		Use:   "forward",
 		Short: "Move to the next checkpoint (browser forward)",
@@ -213,7 +243,6 @@ func main() {
 			return nil
 		},
 	}
-
 	jumpCmd := &cobra.Command{
 		Use:   "jump <label|index|id-prefix>",
 		Short: "Jump to a checkpoint by index, label, or id prefix",
@@ -231,7 +260,6 @@ func main() {
 			return nil
 		},
 	}
-
 	listCmd := &cobra.Command{
 		Use:   "list",
 		Short: "Show the timeline (TUI by default; use --plain for stdout graph)",
@@ -275,7 +303,6 @@ func main() {
 		},
 	}
 	listCmd.Flags().BoolVar(&plainFlag, "plain", false, "print ASCII tree to stdout instead of TUI")
-
 	statusCmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show current git/timeline state",
@@ -412,6 +439,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func validateCheckoutArgs(cmd *cobra.Command, args []string) error {
+	if branchName != "" && len(args) == 0 {
+		return nil
+	}
+	if branchName != "" && len(args) >= 1 {
+		return nil
+	}
+
+	return fmt.Errorf("use either `checkout <target>` or `checkout -b <branch>`")
 }
 
 func printSavedCheckpoint(repo string, s store.State) {

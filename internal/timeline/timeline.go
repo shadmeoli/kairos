@@ -88,7 +88,7 @@ func applyCheckpoint(repoTop string, cp store.Checkpoint, stash bool) ([]string,
 	if cp.Detached || target == "" {
 		target = cp.HEAD
 	}
-	if err := gitexec.Checkout(root, target); err != nil {
+	if err := gitexec.Checkout(root, target, false); err != nil {
 		return stashes, err
 	}
 	return stashes, nil

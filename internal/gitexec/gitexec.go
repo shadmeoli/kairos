@@ -31,6 +31,21 @@ func Run(repo RepoRoot, args ...string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
+func CreateBranch(repo string, branchName string) bool {
+	out, err := Run("", "branch", "--create", branchName)
+	if err != nil {
+		fmt.Printf("Unable to create branch\n%s", err)
+		return false
+	}
+
+	if out == "" {
+		return false
+	}
+	fmt.Printf("Branch created: %s", out)
+	return true
+
+}
+
 func RepoTopLevel(startDir string) (string, error) {
 	out, err := Run("", "-C", startDir, "rev-parse", "--show-toplevel")
 	if err != nil {
@@ -78,7 +93,7 @@ func StashPush(repo RepoRoot, message string) error {
 	return err
 }
 
-func Checkout(repo RepoRoot, target string) error {
+func Checkout(repo RepoRoot, target string, new bool) error {
 	_, err := Run(repo, "checkout", "--quiet", target)
 	return err
 }

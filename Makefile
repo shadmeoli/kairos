@@ -12,7 +12,9 @@ build:
 	go build -ldflags "-X github.com/shadmeoli/kairos/internal/version.Tag=$(VERSION)" -o $(BIN) ./cmd/kairos
 
 test:
-	go test ./...  --cover
+	go test ./internal/gitexec -coverprofile=coverage.out
+	go tool cover -func=coverage.out
+	rm -f coverage.out
 
 # Install kairos into Go bin ($GOBIN or $GOPATH/bin); see install.sh
 install:

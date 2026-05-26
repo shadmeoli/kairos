@@ -2,6 +2,14 @@
 
 Git checkpoint timeline. See `kairos --help` for all commands.
 
+## Install
+
+```text
+go install github.com/shadmeoli/kairos@latest
+```
+
+
+
 ## TUI (`kairos list`)
 
 Run from inside a git working tree:

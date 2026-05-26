@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Install kairos into your Go toolchain bin directory (same as: go install ./cmd/kairos).
+# Install kairos into your Go toolchain bin directory (same as: go install .).
 # The binary is typically $GOBIN/kairos, or $(go env GOPATH)/bin/kairos if GOBIN is empty.
 # Ensure that directory is on your PATH.
 
@@ -13,7 +13,7 @@ if ! command -v go >/dev/null 2>&1; then
 	exit 1
 fi
 
-go install ./cmd/kairos
+go install .
 
 bin_dir="$(go env GOBIN)"
 if [ -z "$bin_dir" ]; then

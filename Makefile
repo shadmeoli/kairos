@@ -5,11 +5,11 @@ VERSION := $(shell git describe --tags --always --dirty)
 
 # Run the CLI via go run (optional: make start ARGS="status")
 start:
-	go run ./cmd/kairos $(ARGS)
+	go run . $(ARGS)
 
 build:
 	mkdir -p $(dir $(BIN))
-	go build -ldflags "-X github.com/shadmeoli/kairos/internal/version.Tag=$(VERSION)" -o $(BIN) ./cmd/kairos
+	go build -ldflags "-X github.com/shadmeoli/kairos/internal/version.Tag=$(VERSION)" -o $(BIN) .
 
 test:
 	go test ./internal/gitexec -coverprofile=coverage.out

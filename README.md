@@ -8,6 +8,19 @@ Git checkpoint timeline. See `kairos --help` for all commands.
 go install github.com/shadmeoli/kairos@latest
 ```
 
+If `kairos` is not found after install, ensure your Go bin directory is on `PATH`:
+
+```text
+export PATH="$(go env GOPATH)/bin:$PATH"
+```
+
+If Go warns that `GOPATH` and `GOROOT` are the same directory, fix that first:
+
+```text
+unset GOROOT
+go env -w GOPATH=$HOME/go
+```
+
 
 
 ## TUI (`kairos list`)

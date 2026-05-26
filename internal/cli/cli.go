@@ -48,7 +48,7 @@ func Execute() {
 		Use:   "kairos",
 		Short: "Git time machine — save checkpoints and move along a timeline",
 	}
-	rootCmd.Version = version.Tag
+	rootCmd.Version = version.Current()
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.PersistentFlags().StringVar(&startDir, "repo", ".", "path inside git working tree")
 
@@ -57,7 +57,7 @@ func Execute() {
 		Short: "Print version (v:major.minor.patch)",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Print(version.Tag + "\n")
+			fmt.Print(version.Current() + "\n")
 		},
 	}
 
